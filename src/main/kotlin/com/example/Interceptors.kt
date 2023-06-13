@@ -48,11 +48,18 @@ abstract class CoroutineInterceptor {
             try {
                 log.info("proceeding")
                 val result = ctx.proceed()
+                // the callee can return a result immediately, and in this case we could just return this result
+                // directly to the caller rather than resuming the continuation (Kotlin generates code in the caller
+                // to handle this immediate return) - but for the sake of simplicity we will always resume the
+                // continuation here.
+                // (In practice our invocation of ctx.proceed may also be deferred, so it's probably not worth optimizing
+                // for this case.)
                 if (result != COROUTINE_SUSPENDED) {
                     log.info("Returned immediately with $result")
                     chainedContinuation.resumeWith(Result.success(result))
                 }
             } catch (t: Throwable) {
+                // similarly to the immediate success case, the callee can throw an exception immediately
                 log.error("ctx.proceed threw $t")
                 chainedContinuation.resumeWith(Result.failure(t))
             }
