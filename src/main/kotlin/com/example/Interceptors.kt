@@ -33,15 +33,19 @@ abstract class CoroutineInterceptor {
         val outerContinuation = ctxParameters.lastOrNull() as? Continuation<Any?>
         if (outerContinuation != null) {
             Log.info("incoming continuation $outerContinuation")
+            val chainedContinuation =
+                ChainedContinuation(outerContinuation, log)
+            // this works but depends on knowledge of how AroundInvokeInterceptor is implemented
+            ctx.parameters[ctx.parameters.size - 1] = chainedContinuation
+
+            // this is the standard way of doing this, but is broken (see https://github.com/quarkusio/quarkus/issues/34001)
+            // val newParameters: Array<Any?> = ctxParameters.clone()
+            // newParameters[newParameters.size - 1] = chainedContinuation
+            // ctx.parameters = newParameters
+
+            // This reflection-based workaround will work for any position in the chain, but... yeesh.
+            // setParameters(ctx, newParameters)
             try {
-                val chainedContinuation =
-                    ChainedContinuation(outerContinuation, log)
-                val newParameters: Array<Any?> = ctxParameters.clone()
-                newParameters[newParameters.size - 1] = chainedContinuation
-                // this should work, but will not if our interceptor is not first in the chain
-                ctx.parameters = newParameters
-                // This will work for any position in the chain, but... yeesh.
-                // setParameters(ctx, newParameters)
                 log.info("proceeding")
                 val result = ctx.proceed()
                 if (result != COROUTINE_SUSPENDED) {
@@ -50,7 +54,7 @@ abstract class CoroutineInterceptor {
                 }
             } catch (t: Throwable) {
                 log.error("ctx.proceed threw $t")
-                outerContinuation.resumeWith(Result.failure(t))
+                chainedContinuation.resumeWith(Result.failure(t))
             }
 
             return COROUTINE_SUSPENDED
@@ -87,7 +91,7 @@ abstract class CoroutineInterceptor {
 
 @DoNothing
 @Interceptor
-@Priority(1)
+@Priority(2)
 class DoNothingInterceptor @Inject constructor(override val log: Logger)
     : CoroutineInterceptor() {
 
@@ -100,7 +104,7 @@ class DoNothingInterceptor @Inject constructor(override val log: Logger)
 
 @Intercept1
 @Interceptor
-@Priority(2)
+@Priority(1)
 class Interceptor1 @Inject constructor(override val log: Logger)
     : CoroutineInterceptor() {
 

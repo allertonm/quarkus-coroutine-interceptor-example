@@ -24,7 +24,7 @@ open class ExampleResource {
     @Produces(MediaType.TEXT_PLAIN)
     @DoNothing
     @Intercept1
-//    @Intercept2
+    @Intercept2
     open suspend fun helloDeferred(): String {
         delay(1000)
         return "Hello from RESTEasy Reactive"
