@@ -76,8 +76,7 @@ abstract class CoroutineInterceptor {
 
         override fun resumeWith(result: Result<ResultType>) {
             log.info("ChainedContinuation.resumeWith $result")
-            outerContination.resumeWith(result);
-        }
+            outerContination.resumeWith(result)        }
     }
 
     private fun setParameters(ctx: InvocationContext, parameters: Array<Any?>) {
